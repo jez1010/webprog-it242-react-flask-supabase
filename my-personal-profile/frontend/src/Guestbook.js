@@ -15,12 +15,34 @@ const Guestbook = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
+      setError(null); // Clear previous errors
+  
+      // 1. Log the URL being hit to the console for debugging
+      console.log("Fetching from URL:", API_URL);
+  
       const response = await axios.get(API_URL);
-      setEntries(response.data);
-      setError(null);
+  
+      // 2. The "Safety Guard": Check if the data is actually an array
+      // If the backend sent HTML by mistake, response.data will be a string, not an array.
+      if (response.data && Array.isArray(response.data)) {
+        setEntries(response.data);
+      } else {
+        // This is what happens when it receives the <!doctype html> you saw
+        console.error("Data received is not an array. Check your API URL!", response.data);
+        setEntries([]); // Fallback to empty array to prevent .map() crash
+        setError("The backend sent an invalid response. Check the console.");
+      }
+  
     } catch (err) {
-      setError("The server is waking up... please wait a moment.");
-      console.error(err);
+      // 3. Handle Render's cold start or network errors
+      console.error("Axios Error:", err);
+      setEntries([]); // Fallback
+      
+      if (err.response && err.response.status === 404) {
+        setError("API Route not found (404). Check your URL structure.");
+      } else {
+        setError("The server is waking up... Please refresh in 30 seconds.");
+      }
     } finally {
       setLoading(false);
     }
@@ -105,7 +127,7 @@ const Guestbook = () => {
       ) : (
         <div className="entries">
           {entries.length === 0 && <p>No entries yet. Be the first!</p>}
-          {entries.map((entry) => (
+          {(entries || []).map((entry) => (
             <div key={entry.id} style={{ borderBottom: '1px solid #ddd', padding: '10px 0' }}>
               <strong>{entry.name}</strong>
               <p>{entry.message}</p>
@@ -121,3 +143,4 @@ const Guestbook = () => {
 
 
 export default Guestbook;
+
